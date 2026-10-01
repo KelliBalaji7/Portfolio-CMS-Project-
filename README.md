@@ -143,6 +143,31 @@ The backend REST API will start on `http://localhost:8080/`.
 
 ---
 
+## ☁️ Production Deployment Guide
+
+### 1. Deploying the Backend & PostgreSQL on Render (Recommended)
+This repository includes a [`render.yaml`](render.yaml) Blueprint for 1-click cloud provisioning of both PostgreSQL and the Spring Boot backend.
+
+1. Go to **[dashboard.render.com](https://dashboard.render.com)** and sign in with GitHub.
+2. Click **New +** → **Blueprint**.
+3. Select your repository: `KelliBalaji7/Portfolio-CMS-Project-`.
+4. Render will detect `render.yaml` and configure:
+   - **PostgreSQL Database**: `portfolio-cms-db`
+   - **Spring Boot Web Service**: `portfolio-cms-backend` (built via multi-stage Dockerfile)
+5. Click **Apply**.
+6. Once deployed, note your live backend URL (e.g. `https://portfolio-cms-backend.onrender.com`).
+
+### 2. Deploying the Frontend on Vercel
+1. Go to **[vercel.com](https://vercel.com)** and sign in with your GitHub account.
+2. Click **Add New...** → **Project**.
+3. Import your repository: `KelliBalaji7/Portfolio-CMS-Project-`.
+4. Under **Root Directory**, click Edit and select `frontend` (or keep root).
+5. Under **Environment Variables**, add:
+   - `VITE_API_BASE_URL`: `https://YOUR-RENDER-BACKEND-URL.onrender.com/api`
+6. Click **Deploy**.
+7. Vercel will output your live URL (e.g. `https://portfolio-cms-project.vercel.app`).
+
+
 ## 🔐 Admin CMS Credentials
 
 On initial application startup, default demo admin credentials are seeded:

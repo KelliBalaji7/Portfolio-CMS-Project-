@@ -168,56 +168,160 @@ function App() {
     setAdminPassword('');
   };
 
-  const handleAddProject = (e) => {
+  const handleAddProject = async (e) => {
     e.preventDefault();
     if (!newProject.title) return;
+    const tempId = Date.now();
     const projectItem = {
-      id: Date.now(),
+      id: tempId,
       title: newProject.title,
       desc: newProject.desc,
       tags: newProject.tags ? newProject.tags.split(',').map(t => t.trim()) : ['React', 'Full Stack']
     };
     setProjects([projectItem, ...projects]);
     setNewProject({ title: '', desc: '', tags: '' });
+
+    if (authToken && authToken !== 'demo-jwt-token-active') {
+      try {
+        const res = await fetch(`${API_BASE}/projects`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${authToken}`
+          },
+          body: JSON.stringify({
+            title: projectItem.title,
+            description: projectItem.desc,
+            tags: projectItem.tags.join(', '),
+            featured: true
+          })
+        });
+        if (res.ok) {
+          const saved = await res.json();
+          setProjects(prev => prev.map(p => p.id === tempId ? { ...p, id: saved.id } : p));
+        }
+      } catch (err) {}
+    }
   };
 
-  const handleDeleteProject = (id) => {
+  const handleDeleteProject = async (id) => {
     setProjects(projects.filter(p => p.id !== id));
+    if (authToken && authToken !== 'demo-jwt-token-active') {
+      try {
+        await fetch(`${API_BASE}/projects/${id}`, {
+          method: 'DELETE',
+          headers: { 'Authorization': `Bearer ${authToken}` }
+        });
+      } catch (err) {}
+    }
   };
 
-  const handleAddSkill = (e) => {
+  const handleAddSkill = async (e) => {
     e.preventDefault();
-    if (!newSkill.trim()) return;
-    if (!skills.includes(newSkill.trim())) {
-      setSkills([...skills, newSkill.trim()]);
+    const skillName = newSkill.trim();
+    if (!skillName) return;
+    if (!skills.includes(skillName)) {
+      setSkills([...skills, skillName]);
     }
     setNewSkill('');
+
+    if (authToken && authToken !== 'demo-jwt-token-active') {
+      try {
+        await fetch(`${API_BASE}/skills`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${authToken}`
+          },
+          body: JSON.stringify({ name: skillName, category: 'Engineering', proficiency: 90 })
+        });
+      } catch (err) {}
+    }
   };
 
   const handleDeleteSkill = (skillToDelete) => {
     setSkills(skills.filter(s => s !== skillToDelete));
   };
 
-  const handleAddExp = (e) => {
+  const handleAddExp = async (e) => {
     e.preventDefault();
     if (!newExp.company) return;
-    setExperiences([{ id: Date.now(), ...newExp }, ...experiences]);
+    const tempId = Date.now();
+    const expItem = { id: tempId, ...newExp };
+    setExperiences([expItem, ...experiences]);
     setNewExp({ company: '', role: '', duration: '', location: '', desc: '' });
+
+    if (authToken && authToken !== 'demo-jwt-token-active') {
+      try {
+        const res = await fetch(`${API_BASE}/experience`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${authToken}`
+          },
+          body: JSON.stringify(expItem)
+        });
+        if (res.ok) {
+          const saved = await res.json();
+          setExperiences(prev => prev.map(e => e.id === tempId ? { ...e, id: saved.id } : e));
+        }
+      } catch (err) {}
+    }
   };
 
-  const handleDeleteExp = (id) => {
+  const handleDeleteExp = async (id) => {
     setExperiences(experiences.filter(e => e.id !== id));
+    if (authToken && authToken !== 'demo-jwt-token-active') {
+      try {
+        await fetch(`${API_BASE}/experience/${id}`, {
+          method: 'DELETE',
+          headers: { 'Authorization': `Bearer ${authToken}` }
+        });
+      } catch (err) {}
+    }
   };
 
-  const handleAddBlog = (e) => {
+  const handleAddBlog = async (e) => {
     e.preventDefault();
     if (!newBlog.title) return;
-    setBlogs([{ id: Date.now(), ...newBlog, date: 'Just now' }, ...blogs]);
+    const tempId = Date.now();
+    const blogItem = { id: tempId, ...newBlog, date: 'Just now' };
+    setBlogs([blogItem, ...blogs]);
     setNewBlog({ title: '', summary: '' });
+
+    if (authToken && authToken !== 'demo-jwt-token-active') {
+      try {
+        const res = await fetch(`${API_BASE}/blogs`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${authToken}`
+          },
+          body: JSON.stringify({
+            title: blogItem.title,
+            summary: blogItem.summary,
+            content: blogItem.summary,
+            author: 'Kelli Balaji'
+          })
+        });
+        if (res.ok) {
+          const saved = await res.json();
+          setBlogs(prev => prev.map(b => b.id === tempId ? { ...b, id: saved.id } : b));
+        }
+      } catch (err) {}
+    }
   };
 
-  const handleDeleteBlog = (id) => {
+  const handleDeleteBlog = async (id) => {
     setBlogs(blogs.filter(b => b.id !== id));
+    if (authToken && authToken !== 'demo-jwt-token-active') {
+      try {
+        await fetch(`${API_BASE}/blogs/${id}`, {
+          method: 'DELETE',
+          headers: { 'Authorization': `Bearer ${authToken}` }
+        });
+      } catch (err) {}
+    }
   };
 
   const handleAddTestimonial = (e) => {
@@ -231,15 +335,45 @@ function App() {
     setTestimonials(testimonials.filter(t => t.id !== id));
   };
 
-  const handleAddService = (e) => {
+  const handleAddService = async (e) => {
     e.preventDefault();
     if (!newService.title) return;
-    setServices([{ id: Date.now(), ...newService }, ...services]);
+    const tempId = Date.now();
+    const serviceItem = { id: tempId, ...newService };
+    setServices([serviceItem, ...services]);
     setNewService({ title: '', desc: '' });
+
+    if (authToken && authToken !== 'demo-jwt-token-active') {
+      try {
+        const res = await fetch(`${API_BASE}/services`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${authToken}`
+          },
+          body: JSON.stringify({
+            title: serviceItem.title,
+            description: serviceItem.desc
+          })
+        });
+        if (res.ok) {
+          const saved = await res.json();
+          setServices(prev => prev.map(s => s.id === tempId ? { ...s, id: saved.id } : s));
+        }
+      } catch (err) {}
+    }
   };
 
-  const handleDeleteService = (id) => {
+  const handleDeleteService = async (id) => {
     setServices(services.filter(s => s.id !== id));
+    if (authToken && authToken !== 'demo-jwt-token-active') {
+      try {
+        await fetch(`${API_BASE}/services/${id}`, {
+          method: 'DELETE',
+          headers: { 'Authorization': `Bearer ${authToken}` }
+        });
+      } catch (err) {}
+    }
   };
 
   const handleContactSubmit = async (e) => {
@@ -264,10 +398,22 @@ function App() {
     setTimeout(() => setContactSubmitted(false), 5000);
   };
 
-  const handleFileUpload = (e) => {
+  const handleFileUpload = async (e) => {
     const file = e.target.files[0];
     if (file) {
-      setUploadedFiles([{ name: file.name, size: (file.size / 1024).toFixed(1) + ' KB', date: 'Just now' }, ...uploadedFiles]);
+      setUploadedFiles(prev => [{ name: file.name, size: (file.size / 1024).toFixed(1) + ' KB', date: 'Just now' }, ...prev]);
+
+      if (authToken && authToken !== 'demo-jwt-token-active') {
+        const formData = new FormData();
+        formData.append('file', file);
+        try {
+          await fetch(`${API_BASE}/files/upload`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${authToken}` },
+            body: formData
+          });
+        } catch (err) {}
+      }
     }
   };
 
