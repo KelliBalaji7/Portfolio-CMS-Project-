@@ -1,0 +1,85 @@
+# ===============================
+# Frontend (React / Vite / Node)
+# ===============================
+frontend/node_modules/
+frontend/dist/
+frontend/dist-ssr/
+frontend/*.local
+frontend/.env
+frontend/.env.*.local
+
+# npm / yarn / pnpm logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# ===============================
+# Backend (Java / Spring Boot / Maven)
+# ===============================
+backend/target/
+backend/build/
+*.class
+*.jar
+*.war
+*.ear
+*.nar
+*.zip
+*.tar.gz
+*.rar
+
+# Maven wrapper and log files
+.mvn/
+mvnw
+mvnw.cmd
+backend/.mvn/
+backend/mvnw
+backend/mvnw.cmd
+
+# ===============================
+# Environment Variables & Secrets
+# ===============================
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+backend/application-secret.properties
+backend/application-secret.yml
+*.key
+*.pem
+*.pfx
+*.p12
+
+# ===============================
+# IDE & Editors
+# ===============================
+.idea/
+*.iml
+*.iws
+*.ipr
+.vscode/
+*.sublime-project
+*.sublime-workspace
+.project
+.classpath
+.settings/
+.springBeans
+
+# ===============================
+# Operating System
+# ===============================
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# ===============================
+# Antigravity & Agent Scratch/Logs
+# ===============================
+.system_generated/
