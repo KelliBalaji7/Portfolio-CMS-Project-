@@ -1,62 +1,60 @@
 package com.portfolio.controller;
 
 import com.portfolio.model.Project;
-import com.portfolio.repository.ProjectRepository;
+import com.portfolio.service.ProjectService;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
+/**
+ * REST API controller exposing endpoints for portfolio projects.
+ */
 @RestController
 @RequestMapping("/api/projects")
 public class ProjectController {
 
-    private final ProjectRepository projectRepository;
+    private final ProjectService projectService;
 
-    public ProjectController(ProjectRepository projectRepository) {
-        this.projectRepository = projectRepository;
+    public ProjectController(ProjectService projectService) {
+        this.projectService = projectService;
     }
 
     @GetMapping
-    public List<Project> getAllProjects() {
-        return projectRepository.findAll();
+    public ResponseEntity<List<Project>> getAllProjects() {
+        return ResponseEntity.ok(projectService.findAll());
+    }
+
+    @GetMapping("/featured")
+    public ResponseEntity<List<Project>> getFeaturedProjects() {
+        return ResponseEntity.ok(projectService.findFeatured());
     }
 
     @GetMapping("/{id}")
     public ResponseEntity<Project> getProjectById(@PathVariable Long id) {
-        return projectRepository.findById(id)
+        return projectService.findById(id)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
 
     @PostMapping
-    public Project createProject(@RequestBody Project project) {
-        return projectRepository.save(project);
+    public ResponseEntity<Project> createProject(@RequestBody Project project) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(projectService.create(project));
     }
 
     @PutMapping("/{id}")
     public ResponseEntity<Project> updateProject(@PathVariable Long id, @RequestBody Project updated) {
-        return projectRepository.findById(id)
-                .map(p -> {
-                    p.setTitle(updated.getTitle());
-                    p.setDescription(updated.getDescription());
-                    p.setTags(updated.getTags());
-                    p.setProjectUrl(updated.getProjectUrl());
-                    p.setGithubUrl(updated.getGithubUrl());
-                    p.setImageUrl(updated.getImageUrl());
-                    p.setFeatured(updated.isFeatured());
-                    return ResponseEntity.ok(projectRepository.save(p));
-                })
+        return projectService.update(id, updated)
+                .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteProject(@PathVariable Long id) {
-        if (!projectRepository.existsById(id)) {
-            return ResponseEntity.notFound().build();
+        if (projectService.deleteById(id)) {
+            return ResponseEntity.noContent().build();
         }
-        projectRepository.deleteById(id);
-        return ResponseEntity.noContent().build();
+        return ResponseEntity.notFound().build();
     }
 }
