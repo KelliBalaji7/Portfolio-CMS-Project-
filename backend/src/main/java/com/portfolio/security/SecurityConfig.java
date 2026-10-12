@@ -56,7 +56,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/blogs/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/testimonials/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/services/**").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/api/files/**").permitAll()
+                        .requestMatchers("/api/files/**").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/contact").permitAll()
                         // Admin-only endpoints for CMS modifications
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")

@@ -401,19 +401,32 @@ function App() {
   const handleFileUpload = async (e) => {
     const file = e.target.files[0];
     if (file) {
-      setUploadedFiles(prev => [{ name: file.name, size: (file.size / 1024).toFixed(1) + ' KB', date: 'Just now' }, ...prev]);
+      const localFile = {
+        name: file.name,
+        size: (file.size / 1024).toFixed(1) + ' KB',
+        date: 'Just now',
+        url: null
+      };
+      setUploadedFiles(prev => [localFile, ...prev]);
 
-      if (authToken && authToken !== 'demo-jwt-token-active') {
-        const formData = new FormData();
-        formData.append('file', file);
-        try {
-          await fetch(`${API_BASE}/files/upload`, {
-            method: 'POST',
-            headers: { 'Authorization': `Bearer ${authToken}` },
-            body: formData
-          });
-        } catch (err) {}
-      }
+      const formData = new FormData();
+      formData.append('file', file);
+      try {
+        const headers = {};
+        if (authToken && authToken !== 'demo-jwt-token-active') {
+          headers['Authorization'] = `Bearer ${authToken}`;
+        }
+        const res = await fetch(`${API_BASE}/files/upload`, {
+          method: 'POST',
+          headers,
+          body: formData
+        });
+        if (res.ok) {
+          const data = await res.json();
+          const fileDownloadUrl = data.fileUrl ? `${API_BASE.replace('/api', '')}${data.fileUrl}` : null;
+          setUploadedFiles(prev => prev.map(f => f.name === file.name ? { ...f, url: fileDownloadUrl } : f));
+        }
+      } catch (err) {}
     }
   };
 
@@ -934,6 +947,11 @@ function App() {
                             <div>
                               <h4>{f.name}</h4>
                               <p>Size: {f.size} · Uploaded: {f.date}</p>
+                              {f.url && (
+                                <a href={f.url} target="_blank" rel="noreferrer" style={{ color: '#67e8f9', fontSize: '13px', textDecoration: 'underline', marginTop: '6px', display: 'inline-block' }}>
+                                  View / Download ↗
+                                </a>
+                              )}
                             </div>
                           </div>
                         ))}

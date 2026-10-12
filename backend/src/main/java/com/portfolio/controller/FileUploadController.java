@@ -62,6 +62,36 @@ public class FileUploadController {
         }
     }
 
+    @GetMapping
+    public ResponseEntity<?> listFiles() {
+        try {
+            File dir = new File(uploadDir);
+            if (!dir.exists() || !dir.isDirectory()) {
+                return ResponseEntity.ok(java.util.Collections.emptyList());
+            }
+
+            File[] files = dir.listFiles();
+            if (files == null) {
+                return ResponseEntity.ok(java.util.Collections.emptyList());
+            }
+
+            java.util.List<Map<String, Object>> fileList = new java.util.ArrayList<>();
+            for (File f : files) {
+                if (f.isFile()) {
+                    Map<String, Object> info = new HashMap<>();
+                    info.put("name", f.getName());
+                    info.put("size", (f.length() / 1024) + " KB");
+                    info.put("fileUrl", "/api/files/" + f.getName());
+                    info.put("lastModified", f.lastModified());
+                    fileList.add(info);
+                }
+            }
+            return ResponseEntity.ok(fileList);
+        } catch (Exception ex) {
+            return ResponseEntity.internalServerError().body("Could not list files: " + ex.getMessage());
+        }
+    }
+
     @GetMapping("/{fileName:.+}")
     public ResponseEntity<Resource> downloadFile(@PathVariable String fileName) {
         try {
