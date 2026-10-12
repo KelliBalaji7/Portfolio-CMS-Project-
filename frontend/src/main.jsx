@@ -21,7 +21,9 @@ import {
   FileText,
   Copy,
   Check,
-  ExternalLink
+  ExternalLink,
+  User,
+  Edit3
 } from 'lucide-react';
 import './style.css';
 
@@ -60,7 +62,17 @@ function App() {
   ]);
 
   const [skills, setSkills] = useState([
-    'Java', 'Spring Boot', 'React', 'HTML5', 'CSS3', 'Bootstrap', 'Python', 'C', 'MySQL', 'PostgreSQL', 'Git', 'GitHub', 'DSA'
+    { id: 1, name: 'Java', category: 'Languages', proficiency: 95 },
+    { id: 2, name: 'Spring Boot', category: 'Backend', proficiency: 90 },
+    { id: 3, name: 'React', category: 'Frontend', proficiency: 88 },
+    { id: 4, name: 'PostgreSQL', category: 'Database', proficiency: 86 },
+    { id: 5, name: 'MySQL', category: 'Database', proficiency: 85 },
+    { id: 6, name: 'Python', category: 'Languages', proficiency: 82 },
+    { id: 7, name: 'C', category: 'Languages', proficiency: 80 },
+    { id: 8, name: 'HTML5 & CSS3', category: 'Frontend', proficiency: 90 },
+    { id: 9, name: 'Bootstrap', category: 'Frontend', proficiency: 85 },
+    { id: 10, name: 'Git & GitHub', category: 'Tools', proficiency: 92 },
+    { id: 11, name: 'DSA', category: 'Core CS', proficiency: 94 }
   ]);
 
   const [experiences, setExperiences] = useState([
@@ -151,9 +163,35 @@ function App() {
     };
   }, []);
 
-  // New item inputs
-  const [newProject, setNewProject] = useState({ title: '', desc: '', tags: '' });
+  // Profile / About Section CMS state
+  const [profile, setProfile] = useState(() => {
+    try {
+      const saved = localStorage.getItem('portfolio_cms_profile');
+      if (saved) return JSON.parse(saved);
+    } catch (e) {}
+    return {
+      name: 'Kelli Balaji',
+      avatar: 'KB',
+      role: 'CSE Student • Full Stack Developer',
+      heroBio: 'Computer Science student focused on Java, Spring Boot, React and Data Structures & Algorithms. I enjoy turning ideas into clean, scalable software.',
+      aboutTitle: 'Developer with a problem-solving mindset.',
+      aboutLead: 'I am pursuing B.Tech in Computer Science and Engineering at Dhanalakshmi Srinivasan University (2023–2027). I have hands-on Java development experience and enjoy working across frontend, backend, databases and machine learning.',
+      cgpa: '8.7',
+      degree: 'B.Tech CSE (2023–2027)',
+      university: 'Dhanalakshmi Srinivasan University'
+    };
+  });
+  const [profileSaved, setProfileSaved] = useState(false);
+
+  // New item inputs & editing state
+  const [newProject, setNewProject] = useState({ title: '', desc: '', tags: '', githubUrl: '', projectUrl: '', imageUrl: '', featured: false });
+  const [editingProjectId, setEditingProjectId] = useState(null);
+
   const [newSkill, setNewSkill] = useState('');
+  const [editingSkillId, setEditingSkillId] = useState(null);
+  const [skillCategory, setSkillCategory] = useState('Backend');
+  const [skillProficiency, setSkillProficiency] = useState(90);
+
   const [newExp, setNewExp] = useState({ company: '', role: '', duration: '', location: '', desc: '' });
   const [newBlog, setNewBlog] = useState({ title: '', summary: '' });
   const [newTestimonial, setNewTestimonial] = useState({ clientName: '', clientRole: '', feedback: '' });
@@ -237,18 +275,67 @@ function App() {
     setAdminPassword('');
   };
 
+  const handleProfileSave = (e) => {
+    e.preventDefault();
+    try {
+      localStorage.setItem('portfolio_cms_profile', JSON.stringify(profile));
+    } catch (err) {}
+    setProfileSaved(true);
+    setTimeout(() => setProfileSaved(false), 3000);
+  };
+
   const handleAddProject = async (e) => {
     e.preventDefault();
     if (!newProject.title) return;
+
+    if (editingProjectId) {
+      const updatedItem = {
+        id: editingProjectId,
+        title: newProject.title,
+        desc: newProject.desc,
+        tags: typeof newProject.tags === 'string' ? newProject.tags.split(',').map(t => t.trim()) : (newProject.tags || []),
+        githubUrl: newProject.githubUrl || '',
+        projectUrl: newProject.projectUrl || '',
+        imageUrl: newProject.imageUrl || '',
+        featured: newProject.featured || false
+      };
+      setProjects(projects.map(p => p.id === editingProjectId ? updatedItem : p));
+      setEditingProjectId(null);
+      setNewProject({ title: '', desc: '', tags: '', githubUrl: '', projectUrl: '', imageUrl: '', featured: false });
+
+      if (authToken && authToken !== 'demo-jwt-token-active') {
+        try {
+          await fetch(`${API_BASE}/projects/${editingProjectId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authToken}` },
+            body: JSON.stringify({
+              title: updatedItem.title,
+              description: updatedItem.desc,
+              tags: updatedItem.tags.join(', '),
+              githubUrl: updatedItem.githubUrl,
+              projectUrl: updatedItem.projectUrl,
+              imageUrl: updatedItem.imageUrl,
+              featured: updatedItem.featured
+            })
+          });
+        } catch (err) {}
+      }
+      return;
+    }
+
     const tempId = Date.now();
     const projectItem = {
       id: tempId,
       title: newProject.title,
       desc: newProject.desc,
-      tags: newProject.tags ? newProject.tags.split(',').map(t => t.trim()) : ['React', 'Full Stack']
+      tags: typeof newProject.tags === 'string' ? newProject.tags.split(',').map(t => t.trim()) : (newProject.tags || ['React', 'Full Stack']),
+      githubUrl: newProject.githubUrl || '',
+      projectUrl: newProject.projectUrl || '',
+      imageUrl: newProject.imageUrl || '',
+      featured: newProject.featured || false
     };
     setProjects([projectItem, ...projects]);
-    setNewProject({ title: '', desc: '', tags: '' });
+    setNewProject({ title: '', desc: '', tags: '', githubUrl: '', projectUrl: '', imageUrl: '', featured: false });
 
     if (authToken && authToken !== 'demo-jwt-token-active') {
       try {
@@ -262,7 +349,10 @@ function App() {
             title: projectItem.title,
             description: projectItem.desc,
             tags: projectItem.tags.join(', '),
-            featured: true
+            githubUrl: projectItem.githubUrl,
+            projectUrl: projectItem.projectUrl,
+            imageUrl: projectItem.imageUrl,
+            featured: projectItem.featured
           })
         });
         if (res.ok) {
@@ -273,8 +363,22 @@ function App() {
     }
   };
 
+  const handleEditProject = (p) => {
+    setEditingProjectId(p.id);
+    setNewProject({
+      title: p.title || '',
+      desc: p.desc || p.description || '',
+      tags: Array.isArray(p.tags) ? p.tags.join(', ') : (p.tags || ''),
+      githubUrl: p.githubUrl || '',
+      projectUrl: p.projectUrl || '',
+      imageUrl: p.imageUrl || '',
+      featured: p.featured || false
+    });
+  };
+
   const handleDeleteProject = async (id) => {
     setProjects(projects.filter(p => p.id !== id));
+    if (editingProjectId === id) setEditingProjectId(null);
     if (authToken && authToken !== 'demo-jwt-token-active') {
       try {
         await fetch(`${API_BASE}/projects/${id}`, {
@@ -289,9 +393,27 @@ function App() {
     e.preventDefault();
     const skillName = newSkill.trim();
     if (!skillName) return;
-    if (!skills.includes(skillName)) {
-      setSkills([...skills, skillName]);
+
+    if (editingSkillId) {
+      setSkills(skills.map(s => (s.id === editingSkillId || s.name === editingSkillId) ? {
+        ...s,
+        name: skillName,
+        category: skillCategory,
+        proficiency: Number(skillProficiency)
+      } : s));
+      setEditingSkillId(null);
+      setNewSkill('');
+      return;
     }
+
+    const tempId = Date.now();
+    const newSkillObj = {
+      id: tempId,
+      name: skillName,
+      category: skillCategory,
+      proficiency: Number(skillProficiency)
+    };
+    setSkills([...skills, newSkillObj]);
     setNewSkill('');
 
     if (authToken && authToken !== 'demo-jwt-token-active') {
@@ -302,14 +424,31 @@ function App() {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${authToken}`
           },
-          body: JSON.stringify({ name: skillName, category: 'Engineering', proficiency: 90 })
+          body: JSON.stringify({ name: skillName, category: skillCategory, proficiency: Number(skillProficiency) })
         });
       } catch (err) {}
     }
   };
 
+  const handleEditSkill = (s) => {
+    setEditingSkillId(s.id || s.name);
+    setNewSkill(s.name || s);
+    setSkillCategory(s.category || 'Backend');
+    setSkillProficiency(s.proficiency || 90);
+  };
+
   const handleDeleteSkill = (skillToDelete) => {
-    setSkills(skills.filter(s => s !== skillToDelete));
+    const sName = skillToDelete.name || skillToDelete;
+    setSkills(skills.filter(s => (s.name || s) !== sName));
+    if (editingSkillId === (skillToDelete.id || sName)) setEditingSkillId(null);
+    if (authToken && authToken !== 'demo-jwt-token-active' && skillToDelete.id) {
+      try {
+        fetch(`${API_BASE}/skills/${skillToDelete.id}`, {
+          method: 'DELETE',
+          headers: { 'Authorization': `Bearer ${authToken}` }
+        });
+      } catch (err) {}
+    }
   };
 
   const handleAddExp = async (e) => {
@@ -546,38 +685,49 @@ function App() {
       <main>
         <section className="hero">
           <div>
-            <span className="pill">CSE Student • Full Stack Developer</span>
-            <h1>Hi, I'm <span>Kelli Balaji</span>.<br/>I build useful digital products.</h1>
-            <p>Computer Science student focused on Java, Spring Boot, React and Data Structures & Algorithms. I enjoy turning ideas into clean, scalable software.</p>
+            <span className="pill">{profile.role}</span>
+            <h1>Hi, I'm <span>{profile.name}</span>.<br/>I build useful digital products.</h1>
+            <p>{profile.heroBio}</p>
             <div className="actions">
               <a className="btn" href="#projects">View Projects <ArrowUpRight size={17}/></a>
               <a className="btn ghost" href="#contact">Contact Me</a>
             </div>
           </div>
           <div className="hero-card">
-            <div className="avatar">KB</div>
-            <h3>Java + Full Stack</h3>
-            <p>Building scalable applications with modern web technologies.</p>
+            <div className="avatar">{profile.avatar}</div>
+            <h3>{profile.name}</h3>
+            <p>{profile.role}</p>
             <div className="mini">
               <span>CGPA</span>
-              <strong>8.7</strong>
+              <strong>{profile.cgpa}</strong>
             </div>
           </div>
         </section>
 
         <section id="about">
           <div className="eyebrow">ABOUT ME</div>
-          <h2>Developer with a problem-solving mindset.</h2>
-          <p className="lead">I am pursuing B.Tech in Computer Science and Engineering at Dhanalakshmi Srinivasan University (2023–2027). I have hands-on Java development experience and enjoy working across frontend, backend, databases and machine learning.</p>
+          <h2>{profile.aboutTitle}</h2>
+          <p className="lead">{profile.aboutLead}</p>
         </section>
 
         <section id="skills">
           <div className="eyebrow">TECH STACK</div>
           <h2>Tools I work with</h2>
           <div className="skillgrid">
-            {skills.map(s => (
-              <div className="skill" key={s}><Code2 size={18}/>{s}</div>
-            ))}
+            {skills.map(s => {
+              const skillName = s.name || s;
+              return (
+                <div className="skill" key={skillName}>
+                  <Code2 size={18}/>
+                  <span>{skillName}</span>
+                  {s.proficiency && (
+                    <span style={{ fontSize: '11px', color: '#67e8f9', marginLeft: 'auto', background: '#071526', padding: '2px 6px', borderRadius: '4px' }}>
+                      {s.proficiency}%
+                    </span>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </section>
 
@@ -845,16 +995,22 @@ function App() {
               <div className="cms-body">
                 <div className="cms-sidebar">
                   <button
-                    className={`cms-tab-btn ${activeTab === 'projects' ? 'active' : ''}`}
-                    onClick={() => setActiveTab('projects')}
+                    className={`cms-tab-btn ${activeTab === 'about' ? 'active' : ''}`}
+                    onClick={() => setActiveTab('about')}
                   >
-                    <FolderGit2 size={16}/> Projects ({projects.length})
+                    <User size={16}/> About & Bio
                   </button>
                   <button
                     className={`cms-tab-btn ${activeTab === 'skills' ? 'active' : ''}`}
                     onClick={() => setActiveTab('skills')}
                   >
                     <Code2 size={16}/> Skills ({skills.length})
+                  </button>
+                  <button
+                    className={`cms-tab-btn ${activeTab === 'projects' ? 'active' : ''}`}
+                    onClick={() => setActiveTab('projects')}
+                  >
+                    <FolderGit2 size={16}/> Projects ({projects.length})
                   </button>
                   <button
                     className={`cms-tab-btn ${activeTab === 'experience' ? 'active' : ''}`}
@@ -895,11 +1051,112 @@ function App() {
                 </div>
 
                 <div className="cms-content">
+                  {/* ABOUT & BIO TAB */}
+                  {activeTab === 'about' && (
+                    <div>
+                      <h4 style={{ margin: '0 0 16px', color: '#67e8f9' }}>Manage About Me & Profile</h4>
+                      {profileSaved && (
+                        <div style={{ background: '#064e3b', color: '#a7f3d0', padding: '12px 14px', borderRadius: '8px', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <CheckCircle2 size={16}/> Profile successfully saved and updated live on the portfolio!
+                        </div>
+                      )}
+                      <form onSubmit={handleProfileSave} style={{ background: '#081321', padding: '20px', borderRadius: '12px', border: '1px solid #1b3558' }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                          <div className="form-group">
+                            <label>Full Name</label>
+                            <input
+                              className="form-input"
+                              value={profile.name}
+                              onChange={e => setProfile({ ...profile, name: e.target.value })}
+                              required
+                            />
+                          </div>
+                          <div className="form-group">
+                            <label>Avatar Initials (e.g. KB)</label>
+                            <input
+                              className="form-input"
+                              value={profile.avatar}
+                              onChange={e => setProfile({ ...profile, avatar: e.target.value })}
+                              required
+                            />
+                          </div>
+                        </div>
+
+                        <div className="form-group">
+                          <label>Professional Role / Headline</label>
+                          <input
+                            className="form-input"
+                            value={profile.role}
+                            onChange={e => setProfile({ ...profile, role: e.target.value })}
+                            required
+                          />
+                        </div>
+
+                        <div className="form-group">
+                          <label>Hero Summary Bio</label>
+                          <textarea
+                            className="form-textarea"
+                            rows="2"
+                            value={profile.heroBio}
+                            onChange={e => setProfile({ ...profile, heroBio: e.target.value })}
+                            required
+                          />
+                        </div>
+
+                        <div className="form-group">
+                          <label>About Section Heading</label>
+                          <input
+                            className="form-input"
+                            value={profile.aboutTitle}
+                            onChange={e => setProfile({ ...profile, aboutTitle: e.target.value })}
+                            required
+                          />
+                        </div>
+
+                        <div className="form-group">
+                          <label>About Section Detailed Story</label>
+                          <textarea
+                            className="form-textarea"
+                            rows="3"
+                            value={profile.aboutLead}
+                            onChange={e => setProfile({ ...profile, aboutLead: e.target.value })}
+                            required
+                          />
+                        </div>
+
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                          <div className="form-group">
+                            <label>Degree & University</label>
+                            <input
+                              className="form-input"
+                              value={profile.degree}
+                              onChange={e => setProfile({ ...profile, degree: e.target.value })}
+                            />
+                          </div>
+                          <div className="form-group">
+                            <label>CGPA</label>
+                            <input
+                              className="form-input"
+                              value={profile.cgpa}
+                              onChange={e => setProfile({ ...profile, cgpa: e.target.value })}
+                            />
+                          </div>
+                        </div>
+
+                        <button className="btn-sm btn-primary" type="submit" style={{ marginTop: '10px', padding: '10px 18px' }}>
+                          <Check size={14}/> Save & Publish Profile
+                        </button>
+                      </form>
+                    </div>
+                  )}
+
                   {/* PROJECTS TAB */}
                   {activeTab === 'projects' && (
                     <div>
-                      <h4 style={{ margin: '0 0 16px', color: '#67e8f9' }}>Manage Projects</h4>
-                      <form onSubmit={handleAddProject} style={{ marginBottom: '24px', background: '#081321', padding: '16px', borderRadius: '10px' }}>
+                      <h4 style={{ margin: '0 0 16px', color: '#67e8f9' }}>
+                        {editingProjectId ? 'Edit Project' : 'Manage Projects'}
+                      </h4>
+                      <form onSubmit={handleAddProject} style={{ marginBottom: '24px', background: '#081321', padding: '18px', borderRadius: '12px', border: '1px solid #1b3558' }}>
                         <div className="form-group">
                           <label>Project Title</label>
                           <input
@@ -918,6 +1175,7 @@ function App() {
                             rows="2"
                             value={newProject.desc}
                             onChange={e => setNewProject({ ...newProject, desc: e.target.value })}
+                            required
                           />
                         </div>
                         <div className="form-group">
@@ -929,22 +1187,94 @@ function App() {
                             onChange={e => setNewProject({ ...newProject, tags: e.target.value })}
                           />
                         </div>
-                        <button className="btn-sm btn-primary" type="submit"><Plus size={14}/> Add Project</button>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
+                          <div className="form-group">
+                            <label>GitHub Repository URL</label>
+                            <input
+                              className="form-input"
+                              placeholder="https://github.com/..."
+                              value={newProject.githubUrl || ''}
+                              onChange={e => setNewProject({ ...newProject, githubUrl: e.target.value })}
+                            />
+                          </div>
+                          <div className="form-group">
+                            <label>Live Demo URL</label>
+                            <input
+                              className="form-input"
+                              placeholder="https://..."
+                              value={newProject.projectUrl || ''}
+                              onChange={e => setNewProject({ ...newProject, projectUrl: e.target.value })}
+                            />
+                          </div>
+                        </div>
+                        <div className="form-group">
+                          <label>Thumbnail / Image URL</label>
+                          <div style={{ display: 'flex', gap: '8px' }}>
+                            <input
+                              className="form-input"
+                              style={{ flex: 1 }}
+                              placeholder="https://... or select uploaded file"
+                              value={newProject.imageUrl || ''}
+                              onChange={e => setNewProject({ ...newProject, imageUrl: e.target.value })}
+                            />
+                            {uploadedFiles.length > 0 && (
+                              <select
+                                className="form-input"
+                                style={{ width: '180px' }}
+                                onChange={e => e.target.value && setNewProject({ ...newProject, imageUrl: e.target.value })}
+                                defaultValue=""
+                              >
+                                <option value="" disabled>Pick Asset...</option>
+                                {uploadedFiles.map((f, i) => (
+                                  <option key={i} value={f.url}>{f.name}</option>
+                                ))}
+                              </select>
+                            )}
+                          </div>
+                        </div>
+                        <div style={{ display: 'flex', gap: '10px', alignItems: 'center', marginTop: '12px' }}>
+                          <button className="btn-sm btn-primary" type="submit">
+                            {editingProjectId ? <><Check size={14}/> Update Project</> : <><Plus size={14}/> Add Project</>}
+                          </button>
+                          {editingProjectId && (
+                            <button
+                              type="button"
+                              className="btn-sm"
+                              style={{ background: '#334155', color: '#fff' }}
+                              onClick={() => {
+                                setEditingProjectId(null);
+                                setNewProject({ title: '', desc: '', tags: '', githubUrl: '', projectUrl: '', imageUrl: '', featured: false });
+                              }}
+                            >
+                              Cancel Edit
+                            </button>
+                          )}
+                        </div>
                       </form>
 
                       <div className="cms-grid">
                         {projects.map(p => (
                           <div className="cms-card" key={p.id}>
-                            <div>
-                              <h4>{p.title}</h4>
-                              <p>{p.desc}</p>
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <h4>{p.title}</h4>
+                                {p.githubUrl && <a href={p.githubUrl} target="_blank" rel="noreferrer" style={{ color: '#67e8f9', fontSize: '11px' }}>GitHub ↗</a>}
+                              </div>
+                              <p style={{ marginTop: '4px' }}>{p.desc || p.description}</p>
                               <div className="tags" style={{ marginTop: 8 }}>
-                                {p.tags.map(t => <span key={t}>{t}</span>)}
+                                {(Array.isArray(p.tags) ? p.tags : (p.tags ? p.tags.split(',') : [])).map(t => (
+                                  <span key={t}>{t.trim()}</span>
+                                ))}
                               </div>
                             </div>
-                            <button className="btn-sm btn-danger" onClick={() => handleDeleteProject(p.id)}>
-                              <Trash2 size={14}/> Delete
-                            </button>
+                            <div style={{ display: 'flex', gap: '8px', marginLeft: '12px' }}>
+                              <button className="btn-sm btn-primary" onClick={() => handleEditProject(p)}>
+                                <Edit3 size={14}/> Edit
+                              </button>
+                              <button className="btn-sm btn-danger" onClick={() => handleDeleteProject(p.id)}>
+                                <Trash2 size={14}/> Delete
+                              </button>
+                            </div>
                           </div>
                         ))}
                       </div>
@@ -954,24 +1284,120 @@ function App() {
                   {/* SKILLS TAB */}
                   {activeTab === 'skills' && (
                     <div>
-                      <h4 style={{ margin: '0 0 16px', color: '#67e8f9' }}>Manage Skills</h4>
-                      <form onSubmit={handleAddSkill} style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
-                        <input
-                          className="form-input"
-                          style={{ flex: 1 }}
-                          placeholder="New skill (e.g. Docker, Redis, Kubernetes)"
-                          value={newSkill}
-                          onChange={e => setNewSkill(e.target.value)}
-                        />
-                        <button className="btn-sm btn-primary" type="submit"><Plus size={14}/> Add Skill</button>
-                      </form>
-                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-                        {skills.map(s => (
-                          <div key={s} style={{ display: 'flex', alignItems: 'center', gap: '6px', background: '#0e2038', padding: '6px 12px', borderRadius: '8px', border: '1px solid #1b3558' }}>
-                            <span>{s}</span>
-                            <button onClick={() => handleDeleteSkill(s)} style={{ background: 'transparent', border: 0, color: '#ef4444', cursor: 'pointer' }}>×</button>
+                      <h4 style={{ margin: '0 0 16px', color: '#67e8f9' }}>
+                        {editingSkillId ? 'Edit Skill' : 'Manage Skills'}
+                      </h4>
+                      <form onSubmit={handleAddSkill} style={{ marginBottom: '24px', background: '#081321', padding: '18px', borderRadius: '12px', border: '1px solid #1b3558' }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr 1fr', gap: '12px', alignItems: 'flex-end' }}>
+                          <div className="form-group" style={{ margin: 0 }}>
+                            <label>Skill Name</label>
+                            <input
+                              className="form-input"
+                              placeholder="e.g. Java, Docker, PostgreSQL"
+                              value={newSkill}
+                              onChange={e => setNewSkill(e.target.value)}
+                              required
+                            />
                           </div>
-                        ))}
+                          <div className="form-group" style={{ margin: 0 }}>
+                            <label>Category</label>
+                            <select
+                              className="form-input"
+                              value={skillCategory}
+                              onChange={e => setSkillCategory(e.target.value)}
+                            >
+                              <option value="Languages">Languages</option>
+                              <option value="Backend">Backend</option>
+                              <option value="Frontend">Frontend</option>
+                              <option value="Database">Database</option>
+                              <option value="Tools">Tools & DevOps</option>
+                              <option value="Core CS">Core CS / DSA</option>
+                            </select>
+                          </div>
+                          <div className="form-group" style={{ margin: 0 }}>
+                            <label>Proficiency: {skillProficiency}%</label>
+                            <input
+                              type="range"
+                              min="50"
+                              max="100"
+                              value={skillProficiency}
+                              onChange={e => setSkillProficiency(Number(e.target.value))}
+                              style={{ width: '100%', accentColor: '#67e8f9' }}
+                            />
+                          </div>
+                        </div>
+                        <div style={{ display: 'flex', gap: '10px', marginTop: '14px' }}>
+                          <button className="btn-sm btn-primary" type="submit">
+                            {editingSkillId ? <><Check size={14}/> Update Skill</> : <><Plus size={14}/> Add Skill</>}
+                          </button>
+                          {editingSkillId && (
+                            <button
+                              type="button"
+                              className="btn-sm"
+                              style={{ background: '#334155', color: '#fff' }}
+                              onClick={() => {
+                                setEditingSkillId(null);
+                                setNewSkill('');
+                                setSkillProficiency(90);
+                              }}
+                            >
+                              Cancel Edit
+                            </button>
+                          )}
+                        </div>
+                      </form>
+
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '12px' }}>
+                        {skills.map(s => {
+                          const sName = s.name || s;
+                          const sCat = s.category || 'Technical';
+                          const sProf = s.proficiency || 90;
+                          return (
+                            <div
+                              key={sName}
+                              style={{
+                                background: '#0e2038',
+                                border: '1px solid #1b3558',
+                                borderRadius: '10px',
+                                padding: '12px 14px',
+                                display: 'flex',
+                                flexDirection: 'column',
+                                gap: '6px'
+                              }}
+                            >
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <strong style={{ color: '#eaf2ff', fontSize: '14px' }}>{sName}</strong>
+                                <span style={{ fontSize: '11px', color: '#67e8f9', background: '#071526', padding: '2px 8px', borderRadius: '4px' }}>
+                                  {sCat}
+                                </span>
+                              </div>
+                              <div style={{ width: '100%', height: '6px', background: '#081321', borderRadius: '3px', overflow: 'hidden' }}>
+                                <div style={{ width: `${sProf}%`, height: '100%', background: 'linear-gradient(90deg, #67e8f9, #38bdf8)' }}/>
+                              </div>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '4px' }}>
+                                <span style={{ fontSize: '12px', color: '#8fa4bd' }}>Proficiency: {sProf}%</span>
+                                <div style={{ display: 'flex', gap: '6px' }}>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleEditSkill(s)}
+                                    style={{ background: 'transparent', border: 0, color: '#67e8f9', cursor: 'pointer', padding: '2px' }}
+                                    title="Edit skill"
+                                  >
+                                    <Edit3 size={13}/>
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleDeleteSkill(s)}
+                                    style={{ background: 'transparent', border: 0, color: '#ef4444', cursor: 'pointer', padding: '2px' }}
+                                    title="Delete skill"
+                                  >
+                                    <Trash2 size={13}/>
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
                       </div>
                     </div>
                   )}
