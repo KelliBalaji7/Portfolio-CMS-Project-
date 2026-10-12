@@ -23,7 +23,11 @@ import {
   Check,
   ExternalLink,
   User,
-  Edit3
+  Edit3,
+  BarChart3,
+  PieChart,
+  TrendingUp,
+  Download
 } from 'lucide-react';
 import './style.css';
 
@@ -129,29 +133,37 @@ function App() {
   const [adminPassword, setAdminPassword] = useState('');
   const [authError, setAuthError] = useState('');
   const [activeTab, setActiveTab] = useState('projects');
+  const [biCategoryFilter, setBiCategoryFilter] = useState('All');
+  const [copiedDax, setCopiedDax] = useState(null);
 
   // Open & Close CMS with direct URL hash synchronization
-  const openCms = () => {
+  const openCms = (tab = null) => {
     setIsCmsOpen(true);
-    if (window.location.hash !== '#admin') {
+    if (tab) {
+      setActiveTab(tab);
+      window.location.hash = tab;
+    } else if (window.location.hash !== '#admin') {
       window.location.hash = 'admin';
     }
   };
 
   const closeCms = () => {
     setIsCmsOpen(false);
-    if (typeof window !== 'undefined' && (window.location.hash === '#admin' || window.location.hash === '#login')) {
+    if (typeof window !== 'undefined' && (window.location.hash === '#admin' || window.location.hash === '#login' || window.location.hash === '#analytics' || window.location.hash === '#powerbi')) {
       history.pushState("", document.title, window.location.pathname + window.location.search);
     }
   };
 
-  // Listen for direct URL navigation (#admin, /admin, #login)
+  // Listen for direct URL navigation (#admin, /admin, #login, #analytics, #powerbi)
   useEffect(() => {
     const handleRoute = () => {
       const p = window.location.pathname.toLowerCase();
       const h = window.location.hash.toLowerCase();
       if (p.includes('/admin') || p.includes('/login') || h === '#admin' || h === '#login') {
         setIsCmsOpen(true);
+      } else if (h === '#analytics' || h === '#powerbi') {
+        setIsCmsOpen(true);
+        setActiveTab('analytics');
       }
     };
     handleRoute();
@@ -162,6 +174,41 @@ function App() {
       window.removeEventListener('popstate', handleRoute);
     };
   }, []);
+
+  const handleExportPowerBiCsv = () => {
+    let csv = "Record_Type,Title_or_Name,Category_or_Segment,Proficiency_or_Weight,Tags_or_Details,Status\n";
+    skills.forEach(s => {
+      const name = typeof s === 'string' ? s : s.name;
+      const cat = typeof s === 'object' && s.category ? s.category : 'General';
+      const prof = typeof s === 'object' && s.proficiency ? s.proficiency : 85;
+      csv += `"Skill","${name}","${cat}",${prof},"","Active"\n`;
+    });
+    projects.forEach(p => {
+      const tags = Array.isArray(p.tags) ? p.tags.join('; ') : (p.tags || '');
+      csv += `"Project","${p.title}","${p.featured ? 'Featured' : 'Standard'}",100,"${tags}","Published"\n`;
+    });
+    uploadedFiles.forEach(f => {
+      csv += `"Media","${f.name}","Asset",1,"${f.size || 'N/A'}","Uploaded"\n`;
+    });
+    messages.forEach(m => {
+      csv += `"Inquiry","${m.name}","Lead",1,"${m.subject || ''}","${m.read ? 'Read' : 'Unread'}"\n`;
+    });
+
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', 'portfolio_cms_powerbi_dataset.csv');
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const copyDaxSnippet = (key, text) => {
+    navigator.clipboard.writeText(text);
+    setCopiedDax(key);
+    setTimeout(() => setCopiedDax(null), 2500);
+  };
 
   // Profile / About Section CMS state
   const [profile, setProfile] = useState(() => {
@@ -675,6 +722,9 @@ function App() {
           <a href="#experience">Experience</a>
           <a href="#services">Services</a>
           <a href="#media">Media</a>
+          <a href="#analytics" onClick={(e) => { e.preventDefault(); openCms('analytics'); }} style={{ color: '#f2c811', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+            <BarChart3 size={14}/> Power BI
+          </a>
           <a href="#contact">Contact</a>
         </div>
         <a href="#admin" className="admin" onClick={(e) => { e.preventDefault(); openCms(); }} style={{ background: 'transparent', cursor: 'pointer', color: '#67e8f9', display: 'inline-flex', alignItems: 'center' }}>
@@ -863,6 +913,52 @@ function App() {
           </div>
         </section>
 
+        {/* POWER BI DASHBOARD PUBLIC SECTION */}
+        <section id="analytics" style={{ borderTop: '1px solid #14253a', padding: '70px 0' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', flexWrap: 'wrap', gap: '20px', marginBottom: '35px' }}>
+            <div>
+              <div className="eyebrow" style={{ color: '#f2c811' }}>EXECUTIVE TELEMETRY</div>
+              <h2 style={{ margin: '8px 0' }}>Power BI Portfolio Analytics</h2>
+              <p style={{ margin: 0, color: '#9fb0c7', maxWidth: '620px' }}>
+                Interactive business intelligence tracking tech stack competency, project deliveries, asset distribution, and portfolio telemetry.
+              </p>
+            </div>
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button className="btn" onClick={() => openCms('analytics')} style={{ background: '#f2c811', color: '#07111f', fontWeight: 700 }}>
+                <BarChart3 size={16}/> Open Power BI Explorer
+              </button>
+              <button className="btn ghost" onClick={handleExportPowerBiCsv} style={{ borderColor: '#f2c811', color: '#f2c811' }}>
+                <Download size={16}/> Export Dataset (.CSV)
+              </button>
+            </div>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '18px', marginBottom: '24px' }}>
+            <div style={{ background: '#0a1727', border: '1px solid #1b3558', borderTop: '3px solid #f2c811', borderRadius: '14px', padding: '20px' }}>
+              <div style={{ color: '#8fa4bd', fontSize: '12px', textTransform: 'uppercase' }}>Total Projects</div>
+              <div style={{ fontSize: '32px', fontWeight: 800, color: '#fff', marginTop: '6px' }}>{projects.length}</div>
+              <div style={{ color: '#10b981', fontSize: '12px', marginTop: '4px' }}>+100% Production Ready</div>
+            </div>
+            <div style={{ background: '#0a1727', border: '1px solid #1b3558', borderTop: '3px solid #118dff', borderRadius: '14px', padding: '20px' }}>
+              <div style={{ color: '#8fa4bd', fontSize: '12px', textTransform: 'uppercase' }}>Avg Proficiency</div>
+              <div style={{ fontSize: '32px', fontWeight: 800, color: '#fff', marginTop: '6px' }}>
+                {skills.length > 0 ? Math.round(skills.reduce((acc, s) => acc + (typeof s === 'object' && s.proficiency ? s.proficiency : 85), 0) / skills.length) : 85}%
+              </div>
+              <div style={{ color: '#67e8f9', fontSize: '12px', marginTop: '4px' }}>Benchmark &gt;85% High</div>
+            </div>
+            <div style={{ background: '#0a1727', border: '1px solid #1b3558', borderTop: '3px solid #00bcf2', borderRadius: '14px', padding: '20px' }}>
+              <div style={{ color: '#8fa4bd', fontSize: '12px', textTransform: 'uppercase' }}>Active Skills Tracked</div>
+              <div style={{ fontSize: '32px', fontWeight: 800, color: '#fff', marginTop: '6px' }}>{skills.length}</div>
+              <div style={{ color: '#a78bfa', fontSize: '12px', marginTop: '4px' }}>Frontend, Backend, DB, DevOps</div>
+            </div>
+            <div style={{ background: '#0a1727', border: '1px solid #1b3558', borderTop: '3px solid #10b981', borderRadius: '14px', padding: '20px' }}>
+              <div style={{ color: '#8fa4bd', fontSize: '12px', textTransform: 'uppercase' }}>Media Assets & Leads</div>
+              <div style={{ fontSize: '32px', fontWeight: 800, color: '#fff', marginTop: '6px' }}>{uploadedFiles.length + messages.length}</div>
+              <div style={{ color: '#38bdf8', fontSize: '12px', marginTop: '4px' }}>{uploadedFiles.length} Assets · {messages.length} Inquiries</div>
+            </div>
+          </div>
+        </section>
+
         <section id="contact" className="contact">
           <div className="eyebrow">CONTACT</div>
           <h2>Let's build something useful.</h2>
@@ -1041,6 +1137,13 @@ function App() {
                     onClick={() => setActiveTab('upload')}
                   >
                     <Upload size={16}/> Files ({uploadedFiles.length})
+                  </button>
+                  <button
+                    className={`cms-tab-btn ${activeTab === 'analytics' ? 'active' : ''}`}
+                    onClick={() => setActiveTab('analytics')}
+                    style={activeTab === 'analytics' ? { background: '#25200c', color: '#f2c811', border: '1px solid #f2c811' } : { color: '#f2c811' }}
+                  >
+                    <BarChart3 size={16}/> Power BI Analytics
                   </button>
 
                   <div style={{ marginTop: 'auto', paddingTop: '16px', borderTop: '1px solid #1a2f4a' }}>
@@ -1588,6 +1691,229 @@ function App() {
                       </div>
                     </div>
                   )}
+
+                  {/* POWER BI ANALYTICS TAB */}
+                  {activeTab === 'analytics' && (() => {
+                    const biCategories = ['All', 'Backend', 'Frontend', 'Database', 'DevOps', 'Core'];
+                    const filteredSkillsList = biCategoryFilter === 'All'
+                      ? skills
+                      : skills.filter(s => (typeof s === 'object' && s.category ? s.category.toLowerCase() : '') === biCategoryFilter.toLowerCase());
+
+                    const biAvg = skills.length > 0
+                      ? Math.round(skills.reduce((acc, s) => acc + (typeof s === 'object' && s.proficiency ? s.proficiency : 85), 0) / skills.length)
+                      : 85;
+
+                    const catStats = ['Backend', 'Frontend', 'Database', 'DevOps'].map(c => ({
+                      name: c,
+                      count: skills.filter(s => (typeof s === 'object' && s.category ? s.category.toLowerCase() : '') === c.toLowerCase()).length
+                    }));
+
+                    const techCounts = {};
+                    projects.forEach(p => {
+                      const tagsList = Array.isArray(p.tags) ? p.tags : (typeof p.tags === 'string' ? p.tags.split(',') : []);
+                      tagsList.forEach(t => {
+                        const clean = t.trim();
+                        if (clean) techCounts[clean] = (techCounts[clean] || 0) + 1;
+                      });
+                    });
+                    const topTech = Object.entries(techCounts).sort((a,b) => b[1] - a[1]).slice(0, 6);
+
+                    return (
+                      <div>
+                        {/* Executive Header & Slicers */}
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px', marginBottom: '20px', paddingBottom: '16px', borderBottom: '1px solid #1f3756' }}>
+                          <div>
+                            <span style={{ fontSize: '11px', fontWeight: 800, letterSpacing: '1px', color: '#f2c811', background: '#25200c', padding: '3px 8px', borderRadius: '4px', display: 'inline-block', marginBottom: '6px' }}>
+                              MICROSOFT POWER BI EMBEDDED ENGINE • TELEMETRY
+                            </span>
+                            <h3 style={{ margin: 0, color: '#eaf2ff', fontSize: '20px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                              <BarChart3 size={20} color="#f2c811"/> Portfolio Intelligence & Performance Dashboard
+                            </h3>
+                          </div>
+                          <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: '#081321', padding: '4px 8px', borderRadius: '8px', border: '1px solid #1c3454' }}>
+                              <span style={{ fontSize: '12px', color: '#8fa4bd' }}>Slicer:</span>
+                              <select
+                                value={biCategoryFilter}
+                                onChange={e => setBiCategoryFilter(e.target.value)}
+                                style={{ background: 'transparent', border: 0, color: '#67e8f9', fontSize: '12px', outline: 'none', cursor: 'pointer' }}
+                              >
+                                {biCategories.map(c => <option key={c} value={c} style={{ background: '#0a1728', color: '#fff' }}>{c}</option>)}
+                              </select>
+                            </div>
+                            <button
+                              type="button"
+                              className="btn-sm"
+                              onClick={handleExportPowerBiCsv}
+                              style={{ background: '#f2c811', color: '#07111f', fontWeight: 700 }}
+                              title="Export CSV dataset for Power BI Desktop"
+                            >
+                              <Download size={13}/> Export CSV
+                            </button>
+                            <button
+                              type="button"
+                              className="btn-sm"
+                              onClick={() => copyDaxSnippet('url', `${API_BASE}/projects`)}
+                              style={{ background: '#1c3454', color: '#67e8f9' }}
+                              title="Copy REST Web Connector URL"
+                            >
+                              {copiedDax === 'url' ? <><Check size={12}/> Copied</> : <><Copy size={12}/> Copy OData URL</>}
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Power BI KPI Cards */}
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '14px', marginBottom: '24px' }}>
+                          <div style={{ background: '#081423', border: '1px solid #1b3558', borderTop: '3px solid #f2c811', borderRadius: '10px', padding: '14px' }}>
+                            <div style={{ fontSize: '11px', color: '#8fa4bd', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Total Projects</div>
+                            <div style={{ fontSize: '26px', fontWeight: 800, color: '#fff', marginTop: '4px' }}>{projects.length}</div>
+                            <div style={{ fontSize: '11px', color: '#10b981', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '3px' }}>
+                              <TrendingUp size={12}/> 100% Production Ready
+                            </div>
+                          </div>
+                          <div style={{ background: '#081423', border: '1px solid #1b3558', borderTop: '3px solid #118dff', borderRadius: '10px', padding: '14px' }}>
+                            <div style={{ fontSize: '11px', color: '#8fa4bd', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Avg Proficiency</div>
+                            <div style={{ fontSize: '26px', fontWeight: 800, color: '#fff', marginTop: '4px' }}>{biAvg}%</div>
+                            <div style={{ fontSize: '11px', color: '#67e8f9', marginTop: '4px' }}>
+                              Benchmark &gt;85% High
+                            </div>
+                          </div>
+                          <div style={{ background: '#081423', border: '1px solid #1b3558', borderTop: '3px solid #00bcf2', borderRadius: '10px', padding: '14px' }}>
+                            <div style={{ fontSize: '11px', color: '#8fa4bd', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Tracked Skills</div>
+                            <div style={{ fontSize: '26px', fontWeight: 800, color: '#fff', marginTop: '4px' }}>{skills.length}</div>
+                            <div style={{ fontSize: '11px', color: '#a78bfa', marginTop: '4px' }}>
+                              Across 4 Core Domains
+                            </div>
+                          </div>
+                          <div style={{ background: '#081423', border: '1px solid #1b3558', borderTop: '3px solid #10b981', borderRadius: '10px', padding: '14px' }}>
+                            <div style={{ fontSize: '11px', color: '#8fa4bd', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Media & Inquiries</div>
+                            <div style={{ fontSize: '26px', fontWeight: 800, color: '#fff', marginTop: '4px' }}>{uploadedFiles.length + messages.length}</div>
+                            <div style={{ fontSize: '11px', color: '#38bdf8', marginTop: '4px' }}>
+                              {uploadedFiles.length} Assets · {messages.length} Leads
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Power BI Visuals Row 1: Competency Bar Chart & Category Share */}
+                        <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr', gap: '16px', marginBottom: '20px' }}>
+                          {/* Visual 1: Horizontal Bar Chart */}
+                          <div style={{ background: '#081321', border: '1px solid #182e4a', borderRadius: '12px', padding: '18px' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
+                              <h4 style={{ margin: 0, fontSize: '14px', color: '#eaf2ff', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                <BarChart3 size={15} color="#f2c811"/> Skill Competency Index ({filteredSkillsList.length})
+                              </h4>
+                              <span style={{ fontSize: '11px', color: '#8fa4bd' }}>Sorted by Proficiency</span>
+                            </div>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', maxHeight: '250px', overflowY: 'auto' }}>
+                              {filteredSkillsList.map((s, idx) => {
+                                const name = typeof s === 'string' ? s : s.name;
+                                const prof = typeof s === 'object' && s.proficiency ? s.proficiency : 85;
+                                const cat = typeof s === 'object' && s.category ? s.category : 'General';
+                                return (
+                                  <div key={idx} style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px' }}>
+                                      <span style={{ color: '#fff', fontWeight: 500 }}>{name} <small style={{ color: '#68809e' }}>({cat})</small></span>
+                                      <span style={{ color: prof >= 90 ? '#f2c811' : '#67e8f9', fontWeight: 700 }}>{prof}%</span>
+                                    </div>
+                                    <div style={{ width: '100%', height: '7px', background: '#0e223b', borderRadius: '4px', overflow: 'hidden' }}>
+                                      <div style={{ width: `${prof}%`, height: '100%', background: prof >= 90 ? 'linear-gradient(90deg, #f2c811, #eab308)' : 'linear-gradient(90deg, #00bcf2, #118dff)', borderRadius: '4px' }}/>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+
+                          {/* Visual 2: Category Share */}
+                          <div style={{ background: '#081321', border: '1px solid #182e4a', borderRadius: '12px', padding: '18px' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
+                              <h4 style={{ margin: 0, fontSize: '14px', color: '#eaf2ff', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                <PieChart size={15} color="#00bcf2"/> Domain Breakdown
+                              </h4>
+                              <span style={{ fontSize: '11px', color: '#8fa4bd' }}>Proportions</span>
+                            </div>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                              {catStats.map((item, i) => {
+                                const pct = skills.length > 0 ? Math.round((item.count / skills.length) * 100) : 25;
+                                const colors = ['#f2c811', '#00bcf2', '#118dff', '#a78bfa'];
+                                return (
+                                  <div key={i} style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px' }}>
+                                      <span style={{ color: '#cbd5e1' }}>{item.name}</span>
+                                      <span style={{ color: colors[i % colors.length], fontWeight: 700 }}>{item.count} ({pct}%)</span>
+                                    </div>
+                                    <div style={{ width: '100%', height: '8px', background: '#0e223b', borderRadius: '4px', overflow: 'hidden' }}>
+                                      <div style={{ width: `${pct}%`, height: '100%', background: colors[i % colors.length] }}/>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Visuals Row 2: Tech Stack Frequency & DAX Measures */}
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.2fr', gap: '16px', marginBottom: '20px' }}>
+                          {/* Visual 3: Tech Frequency */}
+                          <div style={{ background: '#081321', border: '1px solid #182e4a', borderRadius: '12px', padding: '18px' }}>
+                            <h4 style={{ margin: '0 0 12px', fontSize: '14px', color: '#eaf2ff' }}>
+                              Top Tech Stacks in Projects
+                            </h4>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                              {topTech.map(([tech, count], i) => (
+                                <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#0c1a2c', padding: '6px 10px', borderRadius: '6px' }}>
+                                  <span style={{ fontSize: '12px', color: '#e2e8f0' }}>{tech}</span>
+                                  <span style={{ fontSize: '11px', color: '#67e8f9', background: '#112947', padding: '2px 8px', borderRadius: '4px', fontWeight: 700 }}>{count} projects</span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+
+                          {/* Visual 4: Power BI DAX Formulas Reference */}
+                          <div style={{ background: '#081321', border: '1px solid #182e4a', borderRadius: '12px', padding: '18px' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                              <h4 style={{ margin: 0, fontSize: '14px', color: '#f2c811' }}>
+                                Power BI DAX Formulas Library
+                              </h4>
+                              <span style={{ fontSize: '11px', color: '#8fa4bd' }}>Copy & Paste</span>
+                            </div>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '12px' }}>
+                              {[
+                                { name: 'Total Projects', dax: "Total Projects = COUNTROWS('Projects')" },
+                                { name: 'Avg Proficiency %', dax: "Avg Proficiency % = DIVIDE(AVERAGE('Skills'[Proficiency]), 100)" },
+                                { name: 'Featured Project Ratio', dax: "Featured Ratio = DIVIDE(CALCULATE(COUNTROWS('Projects'), 'Projects'[Featured] = TRUE()), [Total Projects], 0)" },
+                                { name: 'Lead SLA Rate', dax: "Lead SLA Rate = DIVIDE(CALCULATE(COUNTROWS('Inquiries'), 'Inquiries'[ReadStatus] = TRUE()), COUNTROWS('Inquiries'), 0)" }
+                              ].map(item => (
+                                <div key={item.name} style={{ background: '#091524', border: '1px solid #1a3250', borderRadius: '6px', padding: '8px 10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                  <code style={{ color: '#93c5fd', fontSize: '11px' }}>{item.dax}</code>
+                                  <button
+                                    type="button"
+                                    onClick={() => copyDaxSnippet(item.name, item.dax)}
+                                    style={{ background: 'transparent', border: 0, color: '#f2c811', cursor: 'pointer', marginLeft: '8px', padding: '2px' }}
+                                    title="Copy DAX"
+                                  >
+                                    {copiedDax === item.name ? <Check size={12}/> : <Copy size={12}/>}
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Power BI Desktop Quick Connect Guide */}
+                        <div style={{ background: '#0d1d33', border: '1px solid #1e3b63', borderRadius: '12px', padding: '16px' }}>
+                          <h4 style={{ margin: '0 0 8px', color: '#67e8f9', fontSize: '14px' }}>
+                            How to load into Microsoft Power BI Desktop
+                          </h4>
+                          <ol style={{ margin: 0, paddingLeft: '20px', color: '#94a8c2', fontSize: '12px', lineHeight: '1.7' }}>
+                            <li>Click <strong>Export CSV</strong> above, open Power BI Desktop &rarr; <strong>Get Data</strong> &rarr; <strong>Text/CSV</strong> &rarr; select the downloaded file.</li>
+                            <li>Or connect live via REST API: <strong>Get Data</strong> &rarr; <strong>Web</strong> &rarr; paste <code>https://frontend-ten-snowy-b8s54euo2n.vercel.app/api/projects</code>.</li>
+                            <li>Create visuals: Map <strong>Proficiency</strong> to a Bar Chart, and <strong>Category</strong> to a Donut Chart.</li>
+                          </ol>
+                        </div>
+                      </div>
+                    );
+                  })()}
                 </div>
               </div>
             )}
