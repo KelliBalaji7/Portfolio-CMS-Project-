@@ -31,3 +31,19 @@
 .contact-form{max-width:650px;margin:30px auto 0;background:#0a1728;border:1px solid #193150;border-radius:18px;padding:30px;text-align:left}
 .success-msg{background:#064e3b;color:#a7f3d0;padding:12px;border-radius:8px;margin-bottom:14px;font-size:14px;text-align:center}
 
+/* Media & File Upload Center */
+.upload-dropzone{border:2px dashed #204169;background:#081424;border-radius:16px;padding:36px 20px;text-align:center;cursor:pointer;transition:.2s}
+.upload-dropzone:hover{border-color:#67e8f9;background:#0c1c31}
+.file-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px;margin-top:24px}
+.file-card{background:#0e2038;border:1px solid #1b3558;border-radius:14px;padding:16px;display:flex;gap:14px;align-items:center;transition:.2s}
+.file-card:hover{border-color:#2f588a;transform:translateY(-2px)}
+.file-thumb{width:64px;height:64px;border-radius:10px;background:#071220;border:1px solid #1c395c;display:grid;place-items:center;overflow:hidden;flex-shrink:0}
+.file-thumb img{width:100%;height:100%;object-fit:cover}
+.file-details{flex:1;min-width:0}
+.file-details strong{display:block;font-size:14px;color:#eaf2ff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.file-details span{font-size:12px;color:#8fa4bd}
+.file-btns{display:flex;gap:8px;margin-top:8px}
+.btn-copy{background:#172e4c;color:#67e8f9;border:1px solid #274872;padding:5px 9px;border-radius:6px;font-size:11px;cursor:pointer;font-weight:600}
+.btn-copy:hover{background:#224470}
+
+

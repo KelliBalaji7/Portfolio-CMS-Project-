@@ -115,4 +115,19 @@ public class FileUploadController {
             return ResponseEntity.badRequest().build();
         }
     }
+
+    @DeleteMapping("/{fileName:.+}")
+    public ResponseEntity<?> deleteFile(@PathVariable String fileName) {
+        try {
+            Path filePath = Paths.get(uploadDir).resolve(fileName).normalize();
+            if (Files.exists(filePath)) {
+                Files.delete(filePath);
+                return ResponseEntity.ok(Map.of("message", "File deleted successfully", "fileName", fileName));
+            } else {
+                return ResponseEntity.notFound().build();
+            }
+        } catch (IOException ex) {
+            return ResponseEntity.internalServerError().body("Could not delete file: " + ex.getMessage());
+        }
+    }
 }

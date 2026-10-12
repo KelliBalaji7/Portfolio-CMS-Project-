@@ -17,7 +17,11 @@ import {
   LogOut,
   Plus,
   Trash2,
-  CheckCircle2
+  CheckCircle2,
+  FileText,
+  Copy,
+  Check,
+  ExternalLink
 } from 'lucide-react';
 import './style.css';
 
@@ -113,6 +117,8 @@ function App() {
   const [newTestimonial, setNewTestimonial] = useState({ clientName: '', clientRole: '', feedback: '' });
   const [newService, setNewService] = useState({ title: '', desc: '' });
   const [uploadedFiles, setUploadedFiles] = useState([]);
+  const [isUploading, setIsUploading] = useState(false);
+  const [copiedFile, setCopiedFile] = useState(null);
 
   // Contact form state
   const [contactForm, setContactForm] = useState({ name: '', email: '', subject: '', message: '' });
@@ -129,6 +135,22 @@ function App() {
             title: p.title,
             desc: p.description,
             tags: typeof p.tags === 'string' ? p.tags.split(',').map(t => t.trim()) : (p.tags || [])
+          })));
+        }
+      })
+      .catch(() => {});
+
+    fetch(`${API_BASE}/files`)
+      .then(res => res.ok ? res.json() : [])
+      .then(data => {
+        if (Array.isArray(data) && data.length > 0) {
+          setUploadedFiles(data.map(f => ({
+            name: f.name,
+            fileName: f.name,
+            size: f.size,
+            date: new Date(f.lastModified || Date.now()).toLocaleDateString(),
+            url: `${API_BASE.replace('/api', '')}${f.fileUrl}`,
+            isImage: /\.(jpg|jpeg|png|webp|gif|svg)$/i.test(f.name)
           })));
         }
       })
@@ -399,34 +421,60 @@ function App() {
   };
 
   const handleFileUpload = async (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      const localFile = {
-        name: file.name,
-        size: (file.size / 1024).toFixed(1) + ' KB',
-        date: 'Just now',
-        url: null
-      };
-      setUploadedFiles(prev => [localFile, ...prev]);
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+    setIsUploading(true);
+    const localBlob = URL.createObjectURL(file);
+    const isImg = /\.(jpg|jpeg|png|webp|gif|svg)$/i.test(file.name);
+    const tempFile = {
+      name: file.name,
+      fileName: file.name,
+      size: (file.size / 1024).toFixed(1) + ' KB',
+      date: 'Just now',
+      url: localBlob,
+      isImage: isImg
+    };
+    setUploadedFiles(prev => [tempFile, ...prev]);
 
-      const formData = new FormData();
-      formData.append('file', file);
-      try {
-        const headers = {};
-        if (authToken && authToken !== 'demo-jwt-token-active') {
-          headers['Authorization'] = `Bearer ${authToken}`;
-        }
-        const res = await fetch(`${API_BASE}/files/upload`, {
-          method: 'POST',
-          headers,
-          body: formData
-        });
-        if (res.ok) {
-          const data = await res.json();
-          const fileDownloadUrl = data.fileUrl ? `${API_BASE.replace('/api', '')}${data.fileUrl}` : null;
-          setUploadedFiles(prev => prev.map(f => f.name === file.name ? { ...f, url: fileDownloadUrl } : f));
-        }
-      } catch (err) {}
+    const formData = new FormData();
+    formData.append('file', file);
+    try {
+      const headers = {};
+      if (authToken && authToken !== 'demo-jwt-token-active') {
+        headers['Authorization'] = `Bearer ${authToken}`;
+      }
+      const res = await fetch(`${API_BASE}/files/upload`, {
+        method: 'POST',
+        headers,
+        body: formData
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const serverUrl = data.fileUrl ? `${API_BASE.replace('/api', '')}${data.fileUrl}` : localBlob;
+        setUploadedFiles(prev => prev.map(f => f.name === file.name ? {
+          ...f,
+          name: data.originalName || file.name,
+          fileName: data.fileName,
+          url: serverUrl,
+          isImage: isImg
+        } : f));
+      }
+    } catch (err) {}
+    setIsUploading(false);
+  };
+
+  const handleDeleteFile = async (nameToDelete) => {
+    setUploadedFiles(prev => prev.filter(f => f.name !== nameToDelete && f.fileName !== nameToDelete));
+    try {
+      await fetch(`${API_BASE}/files/${nameToDelete}`, { method: 'DELETE' });
+    } catch (err) {}
+  };
+
+  const handleCopyLink = (url, name) => {
+    if (url) {
+      navigator.clipboard.writeText(url);
+      setCopiedFile(name);
+      setTimeout(() => setCopiedFile(null), 2500);
     }
   };
 
@@ -440,6 +488,7 @@ function App() {
           <a href="#projects">Projects</a>
           <a href="#experience">Experience</a>
           <a href="#services">Services</a>
+          <a href="#media">Media</a>
           <a href="#contact">Contact</a>
         </div>
         <button className="admin" onClick={() => setIsCmsOpen(true)} style={{ background: 'transparent', cursor: 'pointer', color: '#67e8f9' }}>
@@ -534,6 +583,71 @@ function App() {
           <div><Server/><h3>Spring Boot</h3><p>REST APIs and backend services.</p></div>
           <div><Database/><h3>PostgreSQL</h3><p>Structured content storage for the CMS.</p></div>
           <div><ShieldCheck/><h3>JWT Security</h3><p>Protected admin authentication.</p></div>
+        </section>
+
+        <section id="media">
+          <div className="eyebrow">MEDIA & ASSETS</div>
+          <h2>Image & File Upload Center</h2>
+          <p className="lead">Upload and preview project screenshots, documents, and media assets with instant URL generation.</p>
+
+          <label className="upload-dropzone" style={{ display: 'block', marginTop: '24px' }}>
+            <Upload size={38} color="#67e8f9" style={{ margin: '0 auto 12px', display: 'block' }}/>
+            <strong style={{ display: 'block', fontSize: '16px', color: '#eaf2ff' }}>
+              {isUploading ? 'Uploading file to server...' : 'Click or Drag & Drop to Upload File or Image'}
+            </strong>
+            <span style={{ fontSize: '13px', color: '#8fa4bd', marginTop: '6px', display: 'block' }}>
+              PNG, JPG, SVG, WebP, GIF, PDF, Docs (Max 10MB)
+            </span>
+            <input type="file" onChange={handleFileUpload} style={{ display: 'none' }}/>
+          </label>
+
+          <div className="file-grid">
+            {uploadedFiles.map((f, i) => (
+              <div className="file-card" key={f.fileName || f.name || i}>
+                <div className="file-thumb">
+                  {f.isImage && f.url ? (
+                    <img src={f.url} alt={f.name}/>
+                  ) : (
+                    <FileText size={28} color="#67e8f9"/>
+                  )}
+                </div>
+                <div className="file-details">
+                  <strong title={f.name}>{f.name}</strong>
+                  <span>{f.size} · {f.date}</span>
+                  <div className="file-btns">
+                    {f.url && (
+                      <>
+                        <button
+                          type="button"
+                          className="btn-copy"
+                          onClick={() => handleCopyLink(f.url, f.name)}
+                        >
+                          {copiedFile === f.name ? <><Check size={12}/> Copied</> : <><Copy size={12}/> Copy URL</>}
+                        </button>
+                        <a
+                          href={f.url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="btn-copy"
+                          style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                        >
+                          <ExternalLink size={12}/> Open
+                        </a>
+                      </>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteFile(f.fileName || f.name)}
+                      style={{ background: 'transparent', border: 0, color: '#ef4444', cursor: 'pointer', marginLeft: 'auto' }}
+                      title="Delete file"
+                    >
+                      <Trash2 size={14}/>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
         </section>
 
         <section id="admin" className="cms">
@@ -935,23 +1049,61 @@ function App() {
                   {/* UPLOADS TAB */}
                   {activeTab === 'upload' && (
                     <div>
-                      <h4 style={{ margin: '0 0 16px', color: '#67e8f9' }}>File & Image Uploads</h4>
-                      <div style={{ border: '2px dashed #1c395c', borderRadius: '12px', padding: '30px', textAlign: 'center', marginBottom: '20px' }}>
-                        <Upload size={32} color="#67e8f9"/>
-                        <p style={{ margin: '10px 0 14px', color: '#8fa4bd' }}>Upload project screenshots, resume, or avatar assets</p>
-                        <input type="file" onChange={handleFileUpload} style={{ color: '#8fa4bd' }}/>
-                      </div>
-                      <div className="cms-grid">
+                      <h4 style={{ margin: '0 0 16px', color: '#67e8f9' }}>Media & Asset Management</h4>
+                      <label className="upload-dropzone" style={{ display: 'block', marginBottom: '20px' }}>
+                        <Upload size={32} color="#67e8f9" style={{ margin: '0 auto 8px', display: 'block' }}/>
+                        <strong style={{ display: 'block', color: '#eaf2ff' }}>
+                          {isUploading ? 'Uploading file...' : 'Upload project screenshot or document'}
+                        </strong>
+                        <span style={{ fontSize: '12px', color: '#8fa4bd', marginTop: '4px', display: 'block' }}>
+                          Supported: JPG, PNG, WebP, GIF, SVG, PDF
+                        </span>
+                        <input type="file" onChange={handleFileUpload} style={{ display: 'none' }}/>
+                      </label>
+
+                      <div className="file-grid">
                         {uploadedFiles.map((f, i) => (
-                          <div className="cms-card" key={i}>
-                            <div>
-                              <h4>{f.name}</h4>
-                              <p>Size: {f.size} · Uploaded: {f.date}</p>
-                              {f.url && (
-                                <a href={f.url} target="_blank" rel="noreferrer" style={{ color: '#67e8f9', fontSize: '13px', textDecoration: 'underline', marginTop: '6px', display: 'inline-block' }}>
-                                  View / Download ↗
-                                </a>
+                          <div className="file-card" key={f.fileName || f.name || i}>
+                            <div className="file-thumb">
+                              {f.isImage && f.url ? (
+                                <img src={f.url} alt={f.name}/>
+                              ) : (
+                                <FileText size={24} color="#67e8f9"/>
                               )}
+                            </div>
+                            <div className="file-details">
+                              <strong title={f.name}>{f.name}</strong>
+                              <span>{f.size} · {f.date}</span>
+                              <div className="file-btns">
+                                {f.url && (
+                                  <>
+                                    <button
+                                      type="button"
+                                      className="btn-copy"
+                                      onClick={() => handleCopyLink(f.url, f.name)}
+                                    >
+                                      {copiedFile === f.name ? <><Check size={11}/> Copied</> : <><Copy size={11}/> Copy</>}
+                                    </button>
+                                    <a
+                                      href={f.url}
+                                      target="_blank"
+                                      rel="noreferrer"
+                                      className="btn-copy"
+                                      style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}
+                                    >
+                                      <ExternalLink size={11}/> Open
+                                    </a>
+                                  </>
+                                )}
+                                <button
+                                  type="button"
+                                  onClick={() => handleDeleteFile(f.fileName || f.name)}
+                                  style={{ background: 'transparent', border: 0, color: '#ef4444', cursor: 'pointer', marginLeft: 'auto' }}
+                                  title="Delete file"
+                                >
+                                  <Trash2 size={13}/>
+                                </button>
+                              </div>
                             </div>
                           </div>
                         ))}
