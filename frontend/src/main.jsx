@@ -100,14 +100,56 @@ function App() {
 
   const [messages, setMessages] = useState([]);
 
-  // CMS Modal & Authentication State
-  const [isCmsOpen, setIsCmsOpen] = useState(false);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [authToken, setAuthToken] = useState(null);
+  // CMS Modal & Authentication State (Supports direct link via /admin, #admin, /login)
+  const [authToken, setAuthToken] = useState(() => {
+    try { return localStorage.getItem('portfolio_cms_auth_token') || null; } catch (e) { return null; }
+  });
+  const [isAuthenticated, setIsAuthenticated] = useState(() => {
+    try { return !!localStorage.getItem('portfolio_cms_auth_token'); } catch (e) { return false; }
+  });
+  const [isCmsOpen, setIsCmsOpen] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    const p = window.location.pathname.toLowerCase();
+    const h = window.location.hash.toLowerCase();
+    return p.includes('/admin') || p.includes('/login') || h === '#admin' || h === '#login';
+  });
   const [adminUsername, setAdminUsername] = useState('admin');
   const [adminPassword, setAdminPassword] = useState('');
   const [authError, setAuthError] = useState('');
   const [activeTab, setActiveTab] = useState('projects');
+
+  // Open & Close CMS with direct URL hash synchronization
+  const openCms = () => {
+    setIsCmsOpen(true);
+    if (window.location.hash !== '#admin') {
+      window.location.hash = 'admin';
+    }
+  };
+
+  const closeCms = () => {
+    setIsCmsOpen(false);
+    if (typeof window !== 'undefined' && (window.location.hash === '#admin' || window.location.hash === '#login')) {
+      history.pushState("", document.title, window.location.pathname + window.location.search);
+    }
+  };
+
+  // Listen for direct URL navigation (#admin, /admin, #login)
+  useEffect(() => {
+    const handleRoute = () => {
+      const p = window.location.pathname.toLowerCase();
+      const h = window.location.hash.toLowerCase();
+      if (p.includes('/admin') || p.includes('/login') || h === '#admin' || h === '#login') {
+        setIsCmsOpen(true);
+      }
+    };
+    handleRoute();
+    window.addEventListener('hashchange', handleRoute);
+    window.addEventListener('popstate', handleRoute);
+    return () => {
+      window.removeEventListener('hashchange', handleRoute);
+      window.removeEventListener('popstate', handleRoute);
+    };
+  }, []);
 
   // New item inputs
   const [newProject, setNewProject] = useState({ title: '', desc: '', tags: '' });
@@ -170,6 +212,8 @@ function App() {
         const data = await res.json();
         setAuthToken(data.token);
         setIsAuthenticated(true);
+        try { localStorage.setItem('portfolio_cms_auth_token', data.token); } catch (e) {}
+        if (window.location.hash !== '#admin') window.location.hash = 'admin';
         return;
       }
     } catch (err) {
@@ -179,12 +223,15 @@ function App() {
     if (adminUsername === 'admin' && (adminPassword === 'admin123' || adminPassword === 'admin')) {
       setIsAuthenticated(true);
       setAuthToken('demo-jwt-token-active');
+      try { localStorage.setItem('portfolio_cms_auth_token', 'demo-jwt-token-active'); } catch (e) {}
+      if (window.location.hash !== '#admin') window.location.hash = 'admin';
     } else {
       setAuthError('Invalid credentials. Use admin / admin123 (or connect to Spring Boot backend)');
     }
   };
 
   const handleLogout = () => {
+    try { localStorage.removeItem('portfolio_cms_auth_token'); } catch (e) {}
     setIsAuthenticated(false);
     setAuthToken(null);
     setAdminPassword('');
@@ -491,9 +538,9 @@ function App() {
           <a href="#media">Media</a>
           <a href="#contact">Contact</a>
         </div>
-        <button className="admin" onClick={() => setIsCmsOpen(true)} style={{ background: 'transparent', cursor: 'pointer', color: '#67e8f9' }}>
+        <a href="#admin" className="admin" onClick={(e) => { e.preventDefault(); openCms(); }} style={{ background: 'transparent', cursor: 'pointer', color: '#67e8f9', display: 'inline-flex', alignItems: 'center' }}>
           Admin CMS ↗
-        </button>
+        </a>
       </nav>
 
       <main>
@@ -662,7 +709,7 @@ function App() {
             <div className="panelrow"><span>Skills</span><strong>{skills.length}</strong></div>
             <div className="panelrow"><span>Blog posts</span><strong>{blogs.length}</strong></div>
             <div className="panelrow"><span>Contact Inquiries</span><strong>{messages.length}</strong></div>
-            <button onClick={() => setIsCmsOpen(true)}>Open CMS Panel</button>
+            <button onClick={openCms}>Open CMS Panel</button>
           </div>
         </section>
 
@@ -735,20 +782,25 @@ function App() {
         </section>
       </main>
 
-      <footer>© 2026 Kelli Balaji · Built with React & Spring Boot</footer>
+      <footer>
+        © 2026 Kelli Balaji · Built with React & Spring Boot ·{' '}
+        <a href="#admin" onClick={(e) => { e.preventDefault(); openCms(); }} style={{ color: '#67e8f9', textDecoration: 'underline' }}>
+          CMS Admin Login & Dashboard ↗
+        </a>
+      </footer>
 
       {/* ========================================= */}
       {/* CUSTOM CMS ADMIN MODAL */}
       {/* ========================================= */}
       {isCmsOpen && (
-        <div className="modal-overlay" onClick={() => setIsCmsOpen(false)}>
+        <div className="modal-overlay" onClick={closeCms}>
           <div className="modal-container" onClick={e => e.stopPropagation()}>
             <div className="modal-header">
               <h3>
                 <ShieldCheck size={22}/>
                 Portfolio Custom CMS Admin Panel
               </h3>
-              <button className="close-btn" onClick={() => setIsCmsOpen(false)}>×</button>
+              <button className="close-btn" onClick={closeCms}>×</button>
             </div>
 
             {!isAuthenticated ? (
